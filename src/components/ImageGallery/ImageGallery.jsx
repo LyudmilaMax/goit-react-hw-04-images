@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ImagesApi } from '../../services/pixabayApi';
 import ImageGalleryItem from '../ImageGalleryItem';
 import ButtonLoadMore from '../Button/Button';
@@ -6,86 +6,85 @@ import Loader from '../Loader';
 import { ListGallery, Text } from './ImageGallery.styled';
 import PropTypes from 'prop-types';
 
-export default class ImageGallery extends Component {
-  state = {
-    listImages: [],
-    page: 1,
-    status: 'empty',
-    loadLastPage: false,
-    error: null,
+export default function ImageGallery({ keyword }) {
+  const [listImages, setListImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('empty');
+  const [loadLastPage, setLoadLastPage] = useState(false);
+  const [error, setError] = useState(null);
+
+  let keywordRef = useRef(keyword);
+
+  const loadNextPage = () => {
+    setPage(page + 1);
   };
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevKeyword = prevProps.keyword;
-    const nextKeyword = this.props.keyword;
-    let page = this.state.page;
-    const per_page = 12;
-
-    if (prevKeyword !== nextKeyword) {
-      page = 1;
-      this.setState({ page, listImages: [] });
-    }
-    if (
-      prevKeyword !== nextKeyword ||
-      (prevState.page !== page && page !== 1)
-    ) {
-      this.setState({ status: 'loading' });
-
-      ImagesApi(nextKeyword, page, per_page)
-        .then(result => {
-          if (result.total === 0) {
-            return Promise.reject(new Error('Відсутні дані'));
-          }
-          this.setState({
-            listImages: [...this.state.listImages, ...result.hits],
-            loadLastPage: Math.ceil(result.totalHits / per_page) <= page,
-            status: 'success',
-          });
-        })
-        .catch(error => {
-          this.setState({ status: 'error', error });
-        });
-    }
-  }
-
-  loadNextPage = () => {
-    this.setState({ page: this.state.page + 1 });
-  };
-
-  render() {
-    const { listImages, status, loadLastPage } = this.state;
-
-    if (status === 'empty') {
+  useEffect(() => {
+    if (!keyword) {
       return;
     }
 
-    if (status === 'error') {
-      return (
-        <Text>The entered value "{this.props.keyword}" was not found</Text>
-      );
+    if (keywordRef.current !== keyword) {
+      setListImages([]);
+      setPage(1);
+      if (page !== 1) {
+        // Пропустити поточнне завантаження
+        return;
+      }
     }
 
-    if (status === 'success' || status === 'loading') {
-      return (
-        <>
-          <ListGallery>
-            {listImages.length > 0 &&
-              listImages.map(item => (
-                <ImageGalleryItem
-                  key={item.id}
-                  imageURL={item.webformatURL}
-                  imageModalURL={item.largeImageURL}
-                  description={item.tags}
-                />
-              ))}
-          </ListGallery>
-          {status === 'loading' && <Loader />}
-          {listImages.length !== 0 && status !== 'loading' && !loadLastPage && (
-            <ButtonLoadMore funcLoadMore={this.loadNextPage} />
-          )}
-        </>
-      );
-    }
+    setStatus('loading');
+    const per_page = 12;
+    ImagesApi(keyword, page, per_page)
+      .then(result => {
+        if (result.total === 0) {
+          return Promise.reject(
+            new Error(`The entered value "${keyword}" was not found`)
+          );
+        }
+        setListImages(prev => [...prev, ...result.hits]);
+        setLoadLastPage(Math.ceil(result.totalHits / per_page) <= page);
+        setStatus('success');
+      })
+      .catch(error => {
+        setStatus('error');
+        setError(error);
+      });
+  }, [page, keyword]);
+
+  // Цей useEffect має бути останнім і в ньому ми запамятовуємо останнє значення
+  useEffect(() => {
+    keywordRef.current = keyword;
+  }, [keyword]);
+
+  if (status === 'empty') {
+    return;
+  }
+
+  if (status === 'error') {
+    return <Text>{error.message}</Text>;
+  }
+
+  if (status === 'success' || status === 'loading') {
+    return (
+      <>
+        <ListGallery>
+          {listImages.length > 0 &&
+            listImages.map(item => (
+              <ImageGalleryItem
+                key={item.id}
+                imageURL={item.webformatURL}
+                imageModalURL={item.largeImageURL}
+                description={item.tags}
+              />
+            ))}
+        </ListGallery>
+        {status === 'loading' && <Loader />}
+        {listImages.length !== 0 && status !== 'loading' && !loadLastPage && (
+          <ButtonLoadMore funcLoadMore={loadNextPage} />
+        )}
+      </>
+    );
   }
 }
 

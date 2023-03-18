@@ -1,34 +1,26 @@
-import { Component } from 'react';
+import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Searchbar from './Searchbar';
 import ImageGallery from './ImageGallery';
 import { Container } from './App.styled';
 
-export class App extends Component {
-  state = {
-    keyword: '',
-  };
+export const App = () => {
+  const [keyword, setKeyword] = useState('');
 
-  handleFormSubmit = keyword => {
-    this.setState({ keyword });
-  };
-
-  render() {
-    return (
-      <Container>
-        <Toaster
-          toastOptions={{
-            position: 'top-right',
-            duration: 1500,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-          }}
-        />
-        <Searchbar onSubmit={this.handleFormSubmit} />
-        <ImageGallery keyword={this.state.keyword} />
-      </Container>
-    );
-  }
-}
+  return (
+    <Container>
+      <Toaster
+        toastOptions={{
+          position: 'top-right',
+          duration: 1500,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
+      <Searchbar onSubmit={setKeyword} />
+      <ImageGallery keyword={keyword} />
+    </Container>
+  );
+};
